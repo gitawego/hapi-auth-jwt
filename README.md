@@ -29,8 +29,10 @@ var accounts = {
     }
 };
 
-var validate = function (decodedToken, callback) {
-
+var validate = function (decodedToken, requestedToken, error, callback) {
+    if(error){
+      return callback(error,false);
+    }
     var account = accounts[decodedToken.accountID];
     if (!account) {
         return callback(null, false);
