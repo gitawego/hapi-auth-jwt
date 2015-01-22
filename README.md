@@ -20,31 +20,75 @@ See the example folder for an executable example.
 
 ```javascript
 
+var Hapi = require('hapi'),
+    jwt = require('jsonwebtoken'),
+    server = new Hapi.Server();
+
+server.connection({ port: 8080 });
+
+
 var accounts = {
     123: {
-      id: 123,
-      user: 'john',
-      name: 'John Doe',
-      scope: ['a', 'b']
+        id: 123,
+        user: 'john',
+        fullName: 'John Doe',
+        scope: ['a', 'b']
     }
 };
 
-var validate = function (decodedToken, requestedToken, error, callback) {
+
+
+var privateKey = 'BbZJjyoXAdr8BUZuiKKARWimKfrSmQ6fv8kZ7OFfc';
+
+// Use this token to build your request with the 'Authorization' header.  
+// Ex:
+//     Authorization: Bearer <token>
+var token = jwt.sign({ accountId: 123 }, privateKey);
+
+
+var validate = function (decodedToken,requestedToken, error, callback) {
     if(error){
-      return callback(error,false);
+        return callback(error,false);
     }
-    var account = accounts[decodedToken.accountID];
-    if (!account) {
-        return callback(null, false);
+    var credentials = accounts[decodedToken.accountId] || {};
+
+    if (!credentials) {
+        return callback(error, false, credentials);
     }
 
-    callback(err, isValid, {id: account.id, name: account.name });
+    return callback(error, true, credentials)
 };
 
-server.pack.register(require('hapi-auth-jwt'), function (err) {
-    var privateKey = 'BbZJjyoXAdr8BUZuiKKARWimKfrSmQ6fv8kZ7OFfc';
 
-    server.auth.strategy('token', 'jwt', { key: privatekey,  validateFunc: validate });
-    server.route({ method: 'GET', path: '/', config: { auth: 'token' } });
+server.register(require('hapi-auth-jwt'), function (error) {
+
+    server.auth.strategy('token', 'jwt', {
+        key: privateKey,
+        validateFunc: validate
+    });
+
+    server.route({
+        method: 'GET',
+        path: '/',
+        config: {
+            auth: 'token'
+        }
+    });
+
+    // With scope requirements
+    server.route({
+        method: 'GET',
+        path: '/withScope',
+        config: {
+            auth: {
+                strategy: 'token',
+                scope: ['a']
+            }
+        }
+    });
 });
+
+
+server.start();
+
 ```
